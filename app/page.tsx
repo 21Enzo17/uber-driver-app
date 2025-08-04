@@ -249,8 +249,10 @@ export default function Dashboard() {
             <CardTitle className="text-sm font-medium">Total Ganado</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">${totalEarned.toLocaleString()}</div>
+          <CardContent className="space-y-2">
+            <div className="text-xl font-bold text-green-600 dark:text-green-400 break-words">
+              ${totalEarned.toLocaleString()}
+            </div>
             <p className="text-xs text-muted-foreground">Semanal: ${weeklyEarned.toLocaleString()}</p>
           </CardContent>
         </Card>
@@ -260,8 +262,10 @@ export default function Dashboard() {
             <CardTitle className="text-sm font-medium">Total Gastado</CardTitle>
             <TrendingDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600 dark:text-red-400">${totalExpenses.toLocaleString()}</div>
+          <CardContent className="space-y-2">
+            <div className="text-xl font-bold text-red-600 dark:text-red-400 break-words">
+              ${totalExpenses.toLocaleString()}
+            </div>
             <p className="text-xs text-muted-foreground">Semanal: ${weeklySpent.toLocaleString()}</p>
           </CardContent>
         </Card>
@@ -271,9 +275,9 @@ export default function Dashboard() {
             <CardTitle className="text-sm font-medium">Balance Neto</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-2">
             <div
-              className={`text-2xl font-bold ${netBalance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
+              className={`text-xl font-bold break-words ${netBalance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
             >
               ${netBalance.toLocaleString()}
             </div>
@@ -286,8 +290,8 @@ export default function Dashboard() {
             <CardTitle className="text-sm font-medium">Horas Trabajadas</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatHours(totalHours)}</div>
+          <CardContent className="space-y-2">
+            <div className="text-xl font-bold break-words">{formatHours(totalHours)}</div>
             <p className="text-xs text-muted-foreground">{daysWorked} días trabajados</p>
           </CardContent>
         </Card>
@@ -297,8 +301,10 @@ export default function Dashboard() {
             <CardTitle className="text-sm font-medium">Ganancia por Hora</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">${earningsPerHour.toFixed(2)}/h</div>
+          <CardContent className="space-y-2">
+            <div className="text-xl font-bold text-green-600 dark:text-green-400 break-words">
+              ${earningsPerHour.toFixed(2)}/h
+            </div>
             <p className="text-xs text-muted-foreground">Promedio por hora trabajada</p>
           </CardContent>
         </Card>
@@ -308,9 +314,9 @@ export default function Dashboard() {
             <CardTitle className="text-sm font-medium">% de Ganancia</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-2">
             <div
-              className={`text-2xl font-bold ${profitPercentage >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
+              className={`text-xl font-bold break-words ${profitPercentage >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
             >
               {profitPercentage.toFixed(1)}%
             </div>

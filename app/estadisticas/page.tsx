@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { DatePickerWithRange } from "@/components/date-range-picker"
 import type { DateRange } from "react-day-picker"
-import { format, startOfMonth, endOfMonth, isWithinInterval, startOfWeek, subDays } from "date-fns"
+import { format, startOfMonth, endOfMonth, isWithinInterval, startOfWeek, subDays, differenceInDays, getDay } from "date-fns"
 import { es } from "date-fns/locale"
 import {
   Bar,
@@ -146,6 +146,81 @@ export default function EstadisticasPage() {
     week,
     horas: hours,
   }))
+
+  // NUEVAS ESTADÍSTICAS AVANZADAS
+
+  // 1. Días con más ganancias (Top 5)
+  const topEarningDays = filteredActivities
+    .sort((a, b) => b.totalEarned - a.totalEarned)
+    .slice(0, 5)
+    .map(activity => ({
+      date: format(new Date(activity.date), "dd/MM/yyyy", { locale: es }),
+      amount: activity.totalEarned,
+      hours: activity.hoursWorked
+    }))
+
+  // 2. Análisis por día de la semana
+  const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+  const weekdayStats = dayNames.map((dayName, index) => {
+    const dayActivities = filteredActivities.filter(activity => 
+      getDay(new Date(activity.date)) === index
+    )
+    const totalEarnings = dayActivities.reduce((sum, act) => sum + act.totalEarned, 0)
+    const totalHours = dayActivities.reduce((sum, act) => sum + act.hoursWorked, 0)
+    const avgEarnings = dayActivities.length > 0 ? totalEarnings / dayActivities.length : 0
+    const avgHourlyRate = totalHours > 0 ? totalEarnings / totalHours : 0
+    
+    return {
+      day: dayName,
+      avgEarnings,
+      avgHourlyRate,
+      workDays: dayActivities.length
+    }
+  }).sort((a, b) => b.avgEarnings - a.avgEarnings)
+
+  // 3. Análisis de gastos en nafta
+  const fuelExpenses = filteredExpenses
+    .filter(expense => expense.category === 'Nafta')
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+  const fuelStats = {
+    totalSpent: fuelExpenses.reduce((sum, exp) => sum + exp.amount, 0),
+    avgFrequency: fuelExpenses.length > 1 ? 
+      Math.round(differenceInDays(new Date(fuelExpenses[fuelExpenses.length - 1].date), new Date(fuelExpenses[0].date)) / (fuelExpenses.length - 1)) : 0,
+    avgAmount: fuelExpenses.length > 0 ? fuelExpenses.reduce((sum, exp) => sum + exp.amount, 0) / fuelExpenses.length : 0,
+    count: fuelExpenses.length
+  }
+
+  // 4. Días consecutivos trabajados
+  const workDays = filteredActivities
+    .map(act => act.date)
+    .sort()
+  
+  let maxStreak = 0
+  let currentStreak = 1
+  
+  for (let i = 1; i < workDays.length; i++) {
+    const prevDate = new Date(workDays[i - 1])
+    const currentDate = new Date(workDays[i])
+    const dayDiff = differenceInDays(currentDate, prevDate)
+    
+    if (dayDiff === 1) {
+      currentStreak++
+    } else {
+      maxStreak = Math.max(maxStreak, currentStreak)
+      currentStreak = 1
+    }
+  }
+  maxStreak = Math.max(maxStreak, currentStreak)
+
+  // 5. Eficiencia general
+  const totalEarned = filteredActivities.reduce((sum, act) => sum + act.totalEarned, 0)
+  const totalExpensesAmount = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0)
+  const fuelPercentage = fuelStats.totalSpent > 0 && totalEarned > 0 ? (fuelStats.totalSpent / totalEarned) * 100 : 0
+  const daysWorked = filteredActivities.length
+  const totalDaysInPeriod = dateRange?.from && dateRange?.to ? 
+    differenceInDays(dateRange.to, dateRange.from) + 1 : 0
+  const workFrequency = totalDaysInPeriod > 0 ? (daysWorked / totalDaysInPeriod) * 100 : 0
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -292,6 +367,256 @@ export default function EstadisticasPage() {
                 </BarChart>
               </ResponsiveContainer>
             </ChartContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* NUEVAS ESTADÍSTICAS AVANZADAS */}
+      
+      {/* Sección de Estadísticas de Performance */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Mejor Día</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {topEarningDays.length > 0 ? (
+              <div>
+                <div className="text-2xl font-bold text-green-600">
+                  ${topEarningDays[0].amount.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {topEarningDays[0].date}
+                </p>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">Sin datos</div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Mejor Día de Semana</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {weekdayStats.length > 0 && weekdayStats[0].workDays > 0 ? (
+              <div>
+                <div className="text-2xl font-bold text-blue-600">
+                  {weekdayStats[0].day}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  ${weekdayStats[0].avgEarnings.toFixed(0)} promedio
+                </p>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">Sin datos</div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Racha Máxima</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">
+              {maxStreak} días
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Consecutivos trabajados
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Frecuencia Trabajo</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">
+              {workFrequency.toFixed(0)}%
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {daysWorked} de {totalDaysInPeriod} días
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Sección de Top Días */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>🏆 Top 5 Mejores Días</CardTitle>
+            <CardDescription>Tus días con mayores ganancias</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {topEarningDays.map((day, index) => (
+                <div key={day.date} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">
+                      {index + 1}
+                    </div>
+                    <div>
+                      <p className="font-medium">{day.date}</p>
+                      <p className="text-xs text-muted-foreground">{formatHours(day.hours)}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-green-600">${day.amount.toLocaleString()}</p>
+                  </div>
+                </div>
+              ))}
+              {topEarningDays.length === 0 && (
+                <p className="text-center text-muted-foreground py-4">
+                  No hay datos para mostrar
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>📊 Performance por Día de Semana</CardTitle>
+            <CardDescription>Tus días más productivos</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {weekdayStats.slice(0, 7).map((stat, index) => (
+                <div key={stat.day} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 text-xs flex items-center justify-center font-bold">
+                      {stat.day.slice(0, 2)}
+                    </div>
+                    <div>
+                      <p className="font-medium">{stat.day}</p>
+                      <p className="text-xs text-muted-foreground">{stat.workDays} días trabajados</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold">${stat.avgEarnings.toFixed(0)}</p>
+                    <p className="text-xs text-muted-foreground">${stat.avgHourlyRate.toFixed(0)}/h</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Sección de Análisis de Gastos */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>⛽ Análisis de Nafta</CardTitle>
+            <CardDescription>Estadísticas de combustible</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Total gastado:</span>
+              <span className="font-bold text-red-600">${fuelStats.totalSpent.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Cargas realizadas:</span>
+              <span className="font-bold">{fuelStats.count}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Frecuencia:</span>
+              <span className="font-bold">
+                {fuelStats.avgFrequency > 0 ? `cada ${fuelStats.avgFrequency} días` : 'Sin datos'}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Promedio por carga:</span>
+              <span className="font-bold">${fuelStats.avgAmount.toFixed(0)}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">% de ganancias:</span>
+              <span className={`font-bold ${fuelPercentage > 30 ? 'text-red-600' : fuelPercentage > 20 ? 'text-yellow-600' : 'text-green-600'}`}>
+                {fuelPercentage.toFixed(1)}%
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>💰 Eficiencia General</CardTitle>
+            <CardDescription>Resumen de tu performance</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Días trabajados:</span>
+              <span className="font-bold text-blue-600">{daysWorked}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Total ganado:</span>
+              <span className="font-bold text-green-600">${totalEarned.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Total gastado:</span>
+              <span className="font-bold text-red-600">${totalExpensesAmount.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Balance neto:</span>
+              <span className={`font-bold ${(totalEarned - totalExpensesAmount) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                ${(totalEarned - totalExpensesAmount).toLocaleString()}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Promedio por día:</span>
+              <span className="font-bold">
+                ${daysWorked > 0 ? (totalEarned / daysWorked).toFixed(0) : '0'}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>📈 Tendencias</CardTitle>
+            <CardDescription>Patrones identificados</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+              <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                🎯 Mejor estrategia
+              </p>
+              <p className="text-xs text-blue-600 dark:text-blue-300">
+                {weekdayStats.length > 0 && weekdayStats[0].workDays > 0
+                  ? `Trabajar los ${weekdayStats[0].day}s (${weekdayStats[0].avgHourlyRate.toFixed(0)}$/h)`
+                  : 'Necesitas más datos'}
+              </p>
+            </div>
+            
+            <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg">
+              <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                ⛽ Control de nafta
+              </p>
+              <p className="text-xs text-green-600 dark:text-green-300">
+                {fuelPercentage < 20 
+                  ? 'Excelente control de combustible' 
+                  : fuelPercentage < 30 
+                  ? 'Control moderado de combustible'
+                  : 'Considera optimizar el uso de nafta'}
+              </p>
+            </div>
+
+            <div className="p-3 bg-purple-50 dark:bg-purple-950 rounded-lg">
+              <p className="text-sm font-medium text-purple-800 dark:text-purple-200">
+                📅 Consistencia
+              </p>
+              <p className="text-xs text-purple-600 dark:text-purple-300">
+                {workFrequency > 70 
+                  ? 'Muy consistente trabajando' 
+                  : workFrequency > 40 
+                  ? 'Moderadamente consistente'
+                  : 'Podrías trabajar más seguido'}
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
